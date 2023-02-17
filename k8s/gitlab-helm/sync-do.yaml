@@ -1,23 +1,10 @@
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: backups
-  namespace: gitlab-production
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 200Gi
-  storageClassName: do-block-storage
----
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: gitlab-backup
+  name: gitlab-backup-sync
   namespace: gitlab-production
 spec:
-  schedule: "0 0 * * *"
+  schedule: "0 2 * * *"
   jobTemplate:
     spec:
       template:
@@ -131,8 +118,8 @@ spec:
                 - /bin/bash
                 - '-c'
                 - >-
-                  cp -v -r -L /etc/gitlab/.s3cfg $HOME/.s3cfg && backup-utility && cp -v -r -L /etc/gitlab/.s3cfg $HOME/.s3cfg && cd /srv/gitlab/tmp && rm -rf ./* && export BACKUP_FILENAME=$(s3cmd ls s3://gitlab-backups/ | awk '{print $4}' | awk -F"/gitlab-backups/" '{print$2}' | awk -F: '{print $1}') && s3cmd get $(s3cmd ls s3://gitlab-backups/ | awk '{print $4}') $BACKUP_FILENAME && s3cmd rm -rf s3://gitlab-backups/  && cp -v -r -L -f /etc/gitlab/.s3cfg.do $HOME/.s3cfg && s3cmd put $BACKUP_FILENAME s3://gpanel-gitlab-backups/$BACKUP_FILENAME || true
-              env:
+                  cp -v -r -L /etc/gitlab/.s3cfg $HOME/.s3cfg && cd /srv/gitlab/tmp && rm -rf ./* && export BACKUP_FILENAME=$(s3cmd ls s3://gitlab-backups/ | awk '{print $4}' | awk -F"/gitlab-backups/" '{print$2}' | awk -F: '{print $1}') && s3cmd get $(s3cmd ls s3://gitlab-backups/ | awk '{print $4}') $BACKUP_FILENAME && s3cmd rm -rf s3://gitlab-backups/  && cp -v -r -L -f /etc/gitlab/.s3cfg.do $HOME/.s3cfg && s3cmd put $BACKUP_FILENAME s3://gpanel-gitlab-backups/$BACKUP_FILENAME
+              env: 
                 - name: ARTIFACTS_BUCKET_NAME
                   value: gitlab-artifacts
                 - name: REGISTRY_BUCKET_NAME
