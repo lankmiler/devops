@@ -1,0 +1,26 @@
+step "run-a-script" {
+    name = "Run a Script"
+
+    action {
+        action_type = "Octopus.Script"
+        properties = {
+            Octopus.Action.RunOnServer = "true"
+            Octopus.Action.Script.ScriptBody = "Write-Host $test"
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "PowerShell"
+        }
+    }
+}
+
+step "send-an-email" {
+    name = "Send an Email"
+
+    action {
+        action_type = "Octopus.Email"
+        properties = {
+            Octopus.Action.Email.Body = "Deployment test"
+            Octopus.Action.Email.Subject = "Deployment"
+            Octopus.Action.Email.To = "pavel.lankmiler@gmail.com"
+        }
+    }
+}

@@ -1,0 +1,5 @@
+variable "test" {
+    value "test" {
+        environment = ["development"]
+    }
+}
