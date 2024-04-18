@@ -1,0 +1,18 @@
+apiVersion: v2
+type: application
+name: galera-redis-template
+description: Galera redis template
+version: 1.0.0
+appVersion: 1.0.0
+keywords:
+  - chart
+
+dependencies:
+  - name: redis-cluster
+    alias: rediscluster
+    version: 7.6.4
+    repository: https://charts.bitnami.com/bitnami
+  - name: mariadb-galera
+    alias: mariadbgalera
+    version: ^7.4.3
+    repository: https://charts.bitnami.com/bitnami

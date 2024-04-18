@@ -1,0 +1,63 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  annotations:
+    {{- with .Values.commonAnnotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- with .Values.deploymentAnnotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+  name: {{ include "name" . }}-allocate-cashbacks
+spec:
+  schedule: "0 0 1 * *"
+  jobTemplate:
+    metadata:
+      annotations:
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        component: allocate-cashbacks
+        {{- include "selectorLabels" . | nindent 8 }}
+    spec:
+      template:
+        metadata:
+          labels:
+            network/backend: "true"
+            component: allocate-cashbacks
+            {{- include "selectorLabels" . | nindent 12 }}
+        spec:
+          restartPolicy: OnFailure
+          {{- with .Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          containers:
+            - image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+              command:
+                - /application/vendor/bin/laminas
+                - gpanel:allocate-cashbacks
+              name: allocate-cashbacks
+              envFrom:
+                - secretRef:
+                    name: {{ include "fullname" . }}-mariadb
+                - secretRef:
+                    name: {{ include "fullname" . }}-redis
+                - configMapRef:
+                    name: {{ include "fullname" . }}-mariadb
+                - configMapRef:
+                    name: {{ include "fullname" . }}-redis
+                - secretRef:
+                    name: {{ include "fullname" . }}-php
+                - configMapRef:
+                    name: {{ include "fullname" . }}-php
+              resources:
+                requests:
+                  memory: {{ .Values.cronjobs.allocate_cashbacks.resources.requests.memory }}
+                  cpu: {{ .Values.cronjobs.allocate_cashbacks.resources.requests.cpu }}
+                limits:
+                  memory: {{ .Values.cronjobs.allocate_cashbacks.resources.limits.memory }}
+                  cpu: {{ .Values.cronjobs.allocate_cashbacks.resources.limits.cpu }}                

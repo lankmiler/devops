@@ -1,0 +1,17 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "fullname" . }}-mariadb
+  labels:
+    {{- include "labels" . | nindent 4 }}
+spec:
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          network/mariadb: "true"
+          {{- include "selectorLabels" . | nindent 10 }}
+  podSelector:
+    matchLabels:
+      network/mariadb: "true"
+      {{- include "selectorLabels" . | nindent 6 }}

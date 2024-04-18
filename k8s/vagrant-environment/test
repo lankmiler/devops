@@ -1,0 +1,19 @@
+#!/bin/bash
+
+## 640 everything under data...
+sudo chmod -R 640 /opt/bitnami/mysql/data
+
+## ... except 750 for:
+sudo chmod 750 /opt/bitnami/mysql/data/mysql
+sudo chmod 750 /opt/bitnami/mysql/data/performance_schema
+
+## 755 for /opt/bitnami/mysql/data
+sudo chmod 755 /opt/bitnami/mysql/data
+
+## tmp folder
+sudo chmod 777 /opt/bitnami/mysql/tmp/
+sudo chmod 777 /opt/bitnami/mysql/tmp/mysql.sock
+
+##  644 for...
+sudo chmod 644 /opt/bitnami/mysql/support-files/magic
+sudo chmod 644 /opt/bitnami/mysql/bitnami/my-*.cnf

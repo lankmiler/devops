@@ -1,0 +1,26 @@
+global:
+  hostnameBase: hostname
+  hostnameAlias: hostnamealias
+  redis:
+    password: "redispassword"
+
+rediscluster:
+  fullnameOverride: develop-demo-redis-cluster
+gitlabName: develop-demo
+image:
+  repository: $CI_REGISTRY_IMAGE/php
+  tag: tag
+"imagePullSecrets[0].name": gitlab-registry
+"podAnnotations.app.gitlab.com/env": env
+"podAnnotations.app.gitlab.com/app": app
+"commonAnnotations.app.gitlab.com/env": env
+"commonAnnotations.app.gitlab.com/app": app
+mariadb:
+  password: mysqlpassword
+php:
+  envs:
+    SITE_URL: siteurl
+  secretEnvs:
+    SITE_SECRET: sitesecret
+    INBET_SECRET: cake
+  oauth2TestClient: demo

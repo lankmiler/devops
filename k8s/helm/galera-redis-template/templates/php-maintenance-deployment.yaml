@@ -1,0 +1,71 @@
+{{- if .Values.php.maintenance.mode.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    {{- with .Values.commonAnnotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- with .Values.deploymentAnnotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  labels:
+    component: php-maintenance
+    {{- include "labels" . | nindent 4 }}
+  name: {{ include "fullname" . }}-php-maintenance
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      component: php-maintenance
+      {{- include "selectorLabels" . | nindent 6 }}
+  strategy:
+    type: {{ .Values.php.strategy }}
+  template:
+    metadata:
+      annotations:
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        # checksum/config: {{ include (print $.Template.BasePath "/php-configmap.yaml") . | sha256sum | quote }}
+        # checksum/config-extra: {{ include (print $.Template.BasePath "/php-configmap-extra.yaml") . | sha256sum | quote }}
+        # checksum/redis-config: {{ include (print $.Template.BasePath "/redis-configmap.yaml") . | sha256sum | quote }}
+        # checksum/mariadb-config: {{ include (print $.Template.BasePath "/mariadb-configmap.yaml") . | sha256sum | quote }}
+        # checksum/redis-secret: {{ include (print $.Template.BasePath "/redis-secret.yaml") . | sha256sum | quote }}
+        # checksum/mariadb-secret: {{ include (print $.Template.BasePath "/mariadb-secret.yaml") . | sha256sum | quote }}
+        # checksum/php-secret: {{ include (print $.Template.BasePath "/php-secret.yaml") . | sha256sum | quote }}
+      labels:
+        network/backend: "true"
+        network/frontend: "true"
+        component: php-maintenance
+        {{- include "selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - image: wickerlabs/maintenance
+          env:
+          - name: TEAM_NAME
+            value: ''
+          - name: TITLE
+            value: 'Maintenance in progress'
+          - name: MAIL_ADDRESS
+            value: 'mail@domain.com'
+          - name: LINK_COLOR
+            value: '#dc8100'
+          - name: THEME
+            value: 'Light'
+          - name: RESPONSE_CODE
+            value: '503 Service Unavailable'
+          - name: MESSAGE
+            value: 'Maintenance in progress. We are updating the system and will be back soon'
+          - name: CONTACT_LINK
+            value: ''
+          name: php-maintenance
+          ports:
+            - name: php-maintenance
+              containerPort: 8080
+          resources: {}        
+{{- end }}

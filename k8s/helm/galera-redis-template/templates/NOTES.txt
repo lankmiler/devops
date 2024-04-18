@@ -1,0 +1,2 @@
+The GPanel application has been deployed to:
+  https://{{ include "hostname" . }}

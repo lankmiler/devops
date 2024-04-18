@@ -1,0 +1,21 @@
+certmanager:
+  install: false
+  installCRDs: false
+certmanager-issuer:
+  email: pavlo.lankmilier@onix-systems.com
+gitlab-runner:
+  runners:
+    privileged: false
+global:
+  appConfig:
+    dependencyProxy:
+      enabled: true
+  grafana:
+    enabled: false
+  operator:
+    enabled: true
+nginx-ingress:
+  enabled: false
+registry:
+  enabled: true
+

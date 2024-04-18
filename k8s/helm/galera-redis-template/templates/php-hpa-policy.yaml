@@ -1,0 +1,29 @@
+{{- if .Values.hpaEnabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  labels:
+    component: php
+    {{- include "labels" . | nindent 4 }}
+  name: {{ include "fullname" . }}-php-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "fullname" . }}-php
+  maxReplicas: 8
+  minReplicas: 2
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target: 
+        type: Utilization
+        averageUtilization: 450
+  - type: Resource
+    resource:
+      name: memory
+      target: 
+        type: Utilization
+        averageUtilization: 250
+{{- end }}

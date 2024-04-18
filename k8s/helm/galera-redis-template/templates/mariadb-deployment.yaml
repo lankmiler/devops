@@ -1,0 +1,77 @@
+{{- if .Values.db.mariadb.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    {{- with .Values.commonAnnotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- with .Values.deploymentAnnotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  labels:
+    component: mariadb
+    {{- include "labels" . | nindent 4 }}
+  name: {{ include "fullname" . }}-mariadb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      component: mariadb
+      {{- include "selectorLabels" . | nindent 6 }}
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        checksum/mariadb-config: {{ include (print $.Template.BasePath "/mariadb-configmap.yaml") . | sha256sum | quote }}
+        checksum/mariadb-secret: {{ include (print $.Template.BasePath "/mariadb-secret.yaml") . | sha256sum | quote }}
+      labels:
+        network/backend: "true"
+        network/mariadb: "true"
+        component: mariadb
+        {{- include "selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - image: mariadb:10.5
+          name: mariadb
+          ports:
+            - containerPort: 3306
+          resources:
+            requests:
+              cpu: {{ .Values.mariadb.resources.requests.cpu }}
+              memory: {{ .Values.mariadb.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.mariadb.resources.limits.cpu }}
+              memory: {{ .Values.mariadb.resources.limits.memory }}          
+          volumeMounts:
+            - mountPath: /var/lib/mysql
+              name: db
+            - name: config-extra
+              mountPath: /etc/mysql/mariadb.conf.d/55-server-custom.cnf
+              subPath: my_custom.cnf
+          env:
+            - name: MYSQL_RANDOM_ROOT_PASSWORD
+              value: "true"
+          envFrom:
+            - secretRef:
+                name: {{ include "fullname" . }}-mariadb
+            - configMapRef:
+                name: {{ include "fullname" . }}-mariadb
+      restartPolicy: Always
+      volumes:
+        - name: db
+          persistentVolumeClaim:
+            claimName: {{ include "fullname" . }}-db
+        - name: config-extra
+          configMap:
+            name: {{ include "fullname" . }}-mariadb-extra
+            optional: true
+{{ end }}

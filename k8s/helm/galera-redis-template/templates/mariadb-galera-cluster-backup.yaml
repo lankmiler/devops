@@ -1,0 +1,74 @@
+{{- if .Values.db.backup.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "fullname" . }}-galera-backup
+spec:
+  schedule: "*/30 * * * *"
+  concurrencyPolicy: Replace
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            network/mariadb: "true"
+            component: mariadb
+            {{- include "selectorLabels" . | nindent 12 }}
+        spec:
+          containers:
+            - name: {{ include "fullname" . }}-galera-backup
+              image: ghcr.io/benjamin-maynard/kubernetes-cloud-mysql-backup:v2.6.0
+              imagePullPolicy: Always
+              resources:
+                requests:
+                  memory: {{ .Values.cronjobs.galera_backup.resources.requests.memory }}
+                  cpu: {{ .Values.cronjobs.galera_backup.resources.requests.cpu }}
+                limits:
+                  memory: {{ .Values.cronjobs.galera_backup.resources.limits.memory }}
+                  cpu: {{ .Values.cronjobs.galera_backup.resources.limits.cpu }}
+              env:
+                - name: AWS_ACCESS_KEY_ID
+                  value: {{ required "db.backup.aws.access.key.id must be set!" .Values.db.backup.aws.access.key.id | quote }}
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "fullname" . }}-galera-backup
+                      key: aws_secret_access_key
+                - name: BACKUP_ADDITIONAL_PARAMS
+                  value: "--hex-blob"
+                - name: AWS_DEFAULT_REGION
+                  value: {{ required "db.backup.aws.default.region must be set!" .Values.db.backup.aws.default.region | quote }}
+                - name: AWS_S3_ENDPOINT
+                  value: {{ required "db.backup.aws.s3.endpoint must be set!" .Values.db.backup.aws.s3.endpoint | quote }}
+                - name: AWS_BUCKET_NAME
+                  value: {{ required "db.backup.aws.s3.bucket.name must be set!" .Values.db.backup.aws.s3.bucket.name | quote }}
+                - name: AWS_BUCKET_BACKUP_PATH
+                  value: {{ required "db.backup.aws.s3.bucket.backup.path must be set!" .Values.db.backup.aws.s3.bucket.backup.path | quote }}
+                - name: TARGET_DATABASE_HOST
+                  value: {{ include "fullname" . }}-mariadb-galera
+                - name: TARGET_DATABASE_PORT
+                  value: "3306"
+                - name: TARGET_DATABASE_NAMES
+                  value: {{ include "fullname" . }}
+                - name: TARGET_DATABASE_USER
+                  value: {{ include "fullname" . }}
+                - name: BACKUP_COMPRESS
+                  value: "true"
+                - name: TARGET_DATABASE_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "fullname" . }}-galera-backup
+                      key: database_password
+                - name: BACKUP_TIMESTAMP
+                  value: "_%Y_%m_%d"
+                - name: SLACK_ENABLED
+                  value: {{ required "db.backup.slack.enabled must be set!" .Values.db.backup.slack.enabled | quote }}
+                - name: SLACK_CHANNEL
+                  value: {{ required "db.backup.slack.channel must be set!" .Values.db.backup.slack.channel | quote }}
+                - name: SLACK_WEBHOOK_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "fullname" . }}-galera-backup
+                      key: slack_webhook_url
+          restartPolicy: Never
+{{ end }}

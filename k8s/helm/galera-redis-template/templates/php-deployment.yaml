@@ -1,0 +1,261 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    {{- with .Values.commonAnnotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- with .Values.deploymentAnnotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  labels:
+    component: php
+    {{- include "labels" . | nindent 4 }}
+  name: {{ include "fullname" . }}-php
+spec:
+  replicas: {{ .Values.php.replicas }}
+  selector:
+    matchLabels:
+      component: php
+      {{- include "selectorLabels" . | nindent 6 }}
+  strategy:
+    type: {{ .Values.php.strategy }}
+  template:
+    metadata:
+      annotations:
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        checksum/config: {{ include (print $.Template.BasePath "/php-configmap.yaml") . | sha256sum | quote }}
+        checksum/config-extra: {{ include (print $.Template.BasePath "/php-configmap-extra.yaml") . | sha256sum | quote }}
+        checksum/redis-config: {{ include (print $.Template.BasePath "/redis-configmap.yaml") . | sha256sum | quote }}
+        checksum/mariadb-config: {{ include (print $.Template.BasePath "/mariadb-configmap.yaml") . | sha256sum | quote }}
+        checksum/redis-secret: {{ include (print $.Template.BasePath "/redis-secret.yaml") . | sha256sum | quote }}
+        checksum/mariadb-secret: {{ include (print $.Template.BasePath "/mariadb-secret.yaml") . | sha256sum | quote }}
+        checksum/php-secret: {{ include (print $.Template.BasePath "/php-secret.yaml") . | sha256sum | quote }}
+
+        container.apparmor.security.beta.kubernetes.io/php: runtime/default
+        container.apparmor.security.beta.kubernetes.io/clear-cache: runtime/default
+        container.apparmor.security.beta.kubernetes.io/ws: runtime/default
+      labels:
+        network/backend: "true"
+        network/frontend: "true"
+        component: php
+        {{- include "selectorLabels" . | nindent 8 }}
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/instance: {{ .Release.Name }}
+                  app.kubernetes.io/name: {{ include "name" . }}
+                  component: php
+              topologyKey: kubernetes.io/hostname
+            weight: 1    
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      initContainers:
+        - name: doctrine-cache
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          command:
+            - /application/vendor/bin/doctrine
+            - orm:generate-proxies
+          volumeMounts:
+            - mountPath: /application/doctrine-proxies
+              name: doctrine-cache
+            - mountPath: /application/cache/
+              name: cache
+            - mountPath: /application/data/
+              name: data
+            - name: config-extra
+              mountPath: /application/config/autoload/local.php
+              subPath: local.php
+          envFrom:
+            - secretRef:
+                name: {{ include "fullname" . }}-mariadb
+            - secretRef:
+                name: {{ include "fullname" . }}-redis
+            - configMapRef:
+                name: {{ include "fullname" . }}-mariadb
+            - configMapRef:
+                name: {{ include "fullname" . }}-redis
+            - secretRef:
+                name: {{ include "fullname" . }}-php
+            - configMapRef:
+                name: {{ include "fullname" . }}-php
+        - name: clear-cache
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          command:
+            - {{ include "vendorBinPath" . }}/clear-config-cache.php
+          volumeMounts:
+            - mountPath: /application/cache/
+              name: cache
+            - mountPath: /application/data/
+              name: data
+            - name: config-extra
+              mountPath: /application/config/autoload/local.php
+              subPath: local.php
+          envFrom:
+            - secretRef:
+                name: {{ include "fullname" . }}-mariadb
+            - secretRef:
+                name: {{ include "fullname" . }}-redis
+            - configMapRef:
+                name: {{ include "fullname" . }}-mariadb
+            - configMapRef:
+                name: {{ include "fullname" . }}-redis
+            - secretRef:
+                name: {{ include "fullname" . }}-php
+            - configMapRef:
+                name: {{ include "fullname" . }}-php
+          resources:
+            requests:
+              cpu: {{ .Values.php_clear_cache.resources.requests.cpu }}
+              memory: {{ .Values.php_clear_cache.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.php_clear_cache.resources.limits.cpu }}
+              memory: {{ .Values.php_clear_cache.resources.limits.memory }}                
+      containers:
+        - image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          name: php
+          ports:
+            - name: php
+              containerPort: 80
+          livenessProbe:
+            httpGet:
+              port: php
+              path: /health
+              scheme: HTTP
+            initialDelaySeconds: 2
+          readinessProbe:
+            httpGet:
+              port: php
+              path: /health
+              scheme: HTTP
+          #resources: {}
+          resources:
+            requests:
+              cpu: {{ .Values.php.resources.requests.cpu }}
+              memory: {{ .Values.php.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.php.resources.limits.cpu }}
+              memory: {{ .Values.php.resources.limits.memory }}
+          volumeMounts:
+            - mountPath: /application/doctrine-proxies
+              name: doctrine-cache
+            - mountPath: /application/cache/
+              name: cache
+            - mountPath: /application/data/
+              name: data
+            - name: config-extra
+              mountPath: /application/config/autoload/local.php
+              subPath: local.php
+          envFrom:
+            - secretRef:
+                name: {{ include "fullname" . }}-mariadb
+            - secretRef:
+                name: {{ include "fullname" . }}-redis
+            - configMapRef:
+                name: {{ include "fullname" . }}-mariadb
+            - configMapRef:
+                name: {{ include "fullname" . }}-redis
+            - secretRef:
+                name: {{ include "fullname" . }}-php
+            - configMapRef:
+                name: {{ include "fullname" . }}-php
+          securityContext:
+            privileged: false
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            runAsNonRoot: false
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              add:
+                - CHOWN
+                - KILL
+                - MKNOD
+                - NET_BIND_SERVICE
+              drop:
+                - ALL
+        - image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          command:
+            - /application/vendor/bin/websocket-server.php
+          name: ws
+          ports:
+            - name: ws
+              containerPort: 9502
+          # resources: {}
+          readinessProbe:
+            tcpSocket:
+              port: 9502
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: 9502
+            initialDelaySeconds: 5
+            periodSeconds: 5       
+          resources:
+            requests:
+              cpu: {{ .Values.ws.resources.requests.cpu }}
+              memory: {{ .Values.ws.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.ws.resources.limits.cpu }}
+              memory: {{ .Values.ws.resources.limits.memory }}
+          volumeMounts:
+            - mountPath: /application/doctrine-proxies
+              name: doctrine-cache
+            - mountPath: /application/cache/
+              name: cache
+            - mountPath: /application/data/
+              name: data
+            - name: config-extra
+              mountPath: /application/config/autoload/local.php
+              subPath: local.php
+          envFrom:
+            - secretRef:
+                name: {{ include "fullname" . }}-mariadb
+            - secretRef:
+                name: {{ include "fullname" . }}-redis
+            - configMapRef:
+                name: {{ include "fullname" . }}-mariadb
+            - configMapRef:
+                name: {{ include "fullname" . }}-redis
+            - secretRef:
+                name: {{ include "fullname" . }}-php
+            - configMapRef:
+                name: {{ include "fullname" . }}-php
+          securityContext:
+            privileged: false
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            runAsNonRoot: false
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              add:
+                - CHOWN
+                - KILL
+                - MKNOD
+                - NET_BIND_SERVICE
+              drop:
+                - ALL
+      volumes:
+        - name: cache
+          emptyDir: {}
+        - name: doctrine-cache
+          persistentVolumeClaim:
+            claimName: {{ include "fullname" . }}-doctrine-cache
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "fullname" . }}-data
+        - name: config-extra
+          configMap:
+            name: {{ include "fullname" . }}-php-extra
+            optional: true
+       

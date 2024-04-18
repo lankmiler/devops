@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "fullname" . }}-mariadb-extra
+  labels:
+    app: {{ template "fullname" . }}
+data:
+  my_custom.cnf: |-
+    [mysqld]
+    max_connections = 5001

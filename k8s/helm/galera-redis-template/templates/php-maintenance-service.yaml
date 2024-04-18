@@ -1,0 +1,21 @@
+{{- if .Values.php.maintenance.mode.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    {{- with .Values.commonAnnotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  labels:
+    component: php-maintenance
+    {{- include "labels" . | nindent 4 }}
+  name: {{ include "fullname" . }}-php-maintenance
+spec:
+  ports:
+    - name: php-maintenance
+      port: 80
+      targetPort: php-maintenance
+  selector:
+    component: php-maintenance
+    {{- include "selectorLabels" . | nindent 4 }}
+{{- end }}

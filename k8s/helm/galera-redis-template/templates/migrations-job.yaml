@@ -1,0 +1,93 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  annotations:
+    {{- with .Values.migrationsJobAnnotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- with .Values.commonAnnotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- with .Values.deploymentAnnotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  labels:
+    job: migrations
+    {{- include "labels" . | nindent 4 }}
+  name: {{ template "migrations.jobname" . }}
+spec:
+  template:
+    metadata:
+      annotations:
+        {{- with .Values.migrationsJobAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        network/backend: "true"
+        job: migrations
+        {{- include "selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      restartPolicy: OnFailure
+      containers:
+        - name: migrations
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          command:
+            - {{ include "vendorBinPath" . }}/migrations.sh
+          volumeMounts:
+            - mountPath: /application/cache/
+              name: cache
+            - mountPath: /application/doctrine-proxies/default-cache
+              name: doctrine-cache
+            - name: config-extra
+              mountPath: /application/config/autoload/local.php
+              subPath: local.php
+          envFrom:
+            - secretRef:
+                name: {{ include "fullname" . }}-mariadb
+            - secretRef:
+                name: {{ include "fullname" . }}-redis
+            - configMapRef:
+                name: {{ include "fullname" . }}-mariadb
+            - configMapRef:
+                name: {{ include "fullname" . }}-redis
+            - secretRef:
+                name: {{ include "fullname" . }}-php
+            - configMapRef:
+                name: {{ include "fullname" . }}-php
+          resources:
+            requests:
+              memory: 300Mi
+              cpu: 10m
+            limits:
+              memory: 300Mi
+              cpu: 20m
+          securityContext:
+            privileged: false
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            runAsNonRoot: false
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              add:
+                - CHOWN
+                - KILL
+                - MKNOD
+              drop:
+                - ALL
+      volumes:
+        - name: doctrine-cache
+          emptyDir: {}
+        - name: cache
+          emptyDir: {}
+        - name: config-extra
+          configMap:
+            name: {{ include "fullname" . }}-php-extra
+            optional: true

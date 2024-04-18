@@ -1,0 +1,60 @@
+{{- if .Values.php.postaffiliatepro.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  annotations:
+    {{- with .Values.commonAnnotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- with .Values.deploymentAnnotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  labels:
+    component: php
+    {{- include "labels" . | nindent 4 }}
+  name: {{ include "fullname" . }}-pap
+spec:
+  schedule: "30 0 * * *"
+  jobTemplate:
+    metadata:
+      annotations:
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "selectorLabels" . | nindent 8 }}
+    spec:
+      template:
+        metadata:
+          labels:
+            network/backend: "true"
+            {{- include "selectorLabels" . | nindent 12 }}
+        spec:
+          restartPolicy: OnFailure
+          {{- with .Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          containers:
+            - image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+              command:
+                - /application/vendor/bin/postaffiliatepro-daily-revenue.php
+              name: daily-revenue
+              envFrom:
+                - secretRef:
+                    name: {{ include "fullname" . }}-mariadb
+                - secretRef:
+                    name: {{ include "fullname" . }}-redis
+                - configMapRef:
+                    name: {{ include "fullname" . }}-mariadb
+                - configMapRef:
+                    name: {{ include "fullname" . }}-redis
+                - secretRef:
+                    name: {{ include "fullname" . }}-php
+                - configMapRef:
+                    name: {{ include "fullname" . }}-php
+              resources:
+                requests:
+                  memory: 300Mi
+                  cpu: 100m
+{{- end }}

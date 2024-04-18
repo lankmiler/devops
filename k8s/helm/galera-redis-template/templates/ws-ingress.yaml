@@ -1,0 +1,65 @@
+{{- if not .Values.php.maintenance.mode.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    kubernetes.io/tls-acme: "true"
+    external-dns.alpha.kubernetes.io/hostname: {{ include "hostnameAlias" . }}
+    nginx.ingress.kubernetes.io/proxy-body-size: "2m"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      set_real_ip_from 173.245.48.0/20;
+      set_real_ip_from 103.21.244.0/22;
+      set_real_ip_from 103.22.200.0/22;
+      set_real_ip_from 103.31.4.0/22;
+      set_real_ip_from 141.101.64.0/18;
+      set_real_ip_from 108.162.192.0/18;
+      set_real_ip_from 190.93.240.0/20;
+      set_real_ip_from 188.114.96.0/20;
+      set_real_ip_from 197.234.240.0/22;
+      set_real_ip_from 198.41.128.0/17;
+      set_real_ip_from 162.158.0.0/15;
+      set_real_ip_from 104.16.0.0/13;
+      set_real_ip_from 104.24.0.0/14;
+      set_real_ip_from 172.64.0.0/13;
+      set_real_ip_from 131.0.72.0/22;
+      set_real_ip_from 2400:cb00::/32;
+      set_real_ip_from 2606:4700::/32;
+      set_real_ip_from 2803:f800::/32;
+      set_real_ip_from 2405:b500::/32;
+      set_real_ip_from 2405:8100::/32;
+      set_real_ip_from 2a06:98c0::/29;
+      set_real_ip_from 2c0f:f248::/32;
+      real_ip_header CF-Connecting-IP;
+      real_ip_recursive on;
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "86400"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "86400"
+    {{- with .Values.ingressAnnotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- with .Values.commonAnnotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  labels:
+    component: ws
+    {{- include "labels" . | nindent 4 }}
+  name: {{ include "fullname" . }}-ws
+spec:
+{{- if .Values.ingressClassName }}
+  ingressClassName: {{ .Values.ingressClassName }}
+{{- end }}
+  rules:
+    - host: {{ include "hostname" . }}
+      http:
+        paths:
+          - path: /ws
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "fullname" . }}-php
+                port:
+                  name: ws
+  tls:
+    - hosts:
+        - {{ include "hostname" . }}
+      secretName: core-tls
+{{- end }}

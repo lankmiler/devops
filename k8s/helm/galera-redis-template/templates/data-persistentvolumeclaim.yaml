@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "fullname" . }}-data
+  labels:
+    {{- include "labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.dataAccessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.dataStorageSize }}
+  storageClassName: {{ .Values.dataStorageClass }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "fullname" . }}-doctrine-cache
+  labels:
+    {{- include "labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.dataAccessMode }}
+  resources:
+    requests:
+      storage: 200Mi
+  storageClassName: {{ .Values.dataStorageClass }}
